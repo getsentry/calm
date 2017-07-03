@@ -1,0 +1,22 @@
+[package]
+authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
+name = "calm"
+version = "0.1.0"
+
+[dependencies]
+clap = "2.25.0"
+console = "0.5.0"
+crossbeam = "0.2.10"
+dotenv = "0.10.0"
+error-chain = "0.10.0"
+glob = "0.2.11"
+if_chain = "0.1.2"
+indicatif = "0.6.0"
+lazy_static = "0.2.8"
+parking_lot = "0.4.4"
+regex = "0.2.2"
+serde = "1.0.8"
+serde_derive = "1.0.8"
+serde_json = "1.0.2"
+serde_yaml = "0.7.1"
+sha1 = "0.2.0"
