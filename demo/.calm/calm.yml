@@ -46,7 +46,7 @@ tools:
         - '*.js'
         - '*.jsx'
       run:
-        - cmd: eslint -f "${CALM_TOOL_PATH}/eslintformatter.js" 
+        - cmd: "${CALM_TOOL_PATH}/run-eslint.js"
           description: Linting with eslint
           stdout:
             # This tells calm to parse the standardized calm json output.

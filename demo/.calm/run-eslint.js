@@ -1,9 +1,9 @@
-#!/usr/bin/env noe
+#!/usr/bin/env node
 const { spawn } = require('child_process');
 
 let args = ['-f', __dirname + '/eslintformatter.js'];
 
-if (process.argv.length == 2) {
+if (process.argv.length <= 2) {
   args.push('.');
 } else {
   Array.prototype.push.apply(args, process.argv.slice(2));
