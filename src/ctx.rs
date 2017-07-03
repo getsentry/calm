@@ -1,12 +1,11 @@
+use std::fs;
 use std::io::Write;
-use std::env;
 use std::path::{Path, PathBuf};
 
-use sha1::Sha1;
-
 use prelude::*;
-use config::{Config, RuntimeConfig};
+use config::{Config, RuntimeConfig, RemoteToolInclude};
 use tools::Tool;
+use utils::cmd::CommandBuilder;
 use report::Report;
 use rt;
 use rt::common::Runtime;
@@ -21,27 +20,39 @@ struct Log {
 
 #[derive(Debug)]
 pub struct Context {
-    config: Config,
-    cache_dir: PathBuf,
     base_dir: PathBuf,
+    config: Config,
     log: Mutex<Log>,
+}
+
+fn update_remote_tool(path: &Path, rti: &RemoteToolInclude) -> Result<()> {
+    match *rti {
+        RemoteToolInclude::Git { ref git, ref rev, .. } => {
+            fs::create_dir_all(&path)?;
+            let mut cmd = CommandBuilder::new("git");
+            cmd
+                .arg("clone")
+                .arg(git)
+                .arg(".")
+                .current_dir(&path);
+
+            if let &Some(ref rev) = rev {
+                cmd.arg("-b").arg(rev);
+            }
+
+            cmd
+                .spawn()?
+                .wait()?;
+        }
+    }
+    Ok(())
 }
 
 impl Context {
     pub fn new(config: Config) -> Result<Context> {
-        let mut sha = Sha1::new();
-        sha.update(config.filename().to_string_lossy().as_bytes());
-
-        let mut cache_dir = env::home_dir().ok_or(
-            Error::from("could not find home folder"))?;
-        cache_dir.push(".calm");
-        cache_dir.push("rt");
-        cache_dir.push(sha.digest().to_string());
-
         Ok(Context {
             base_dir: config.config_dir().parent().unwrap().to_path_buf(),
             config: config,
-            cache_dir: cache_dir,
             log: Mutex::new(Log {
                 lines: 0,
             }),
@@ -49,7 +60,7 @@ impl Context {
     }
 
     pub fn cache_dir(&self) -> &Path {
-        &self.cache_dir
+        &self.config.cache_dir()
     }
 
     pub fn base_dir(&self) -> &Path {
@@ -90,6 +101,29 @@ impl Context {
             "javascript" => Ok(Box::new(rt::js::JsRuntime::create(self, cfg))),
             _ => Err(Error::from(format!("Could not find runtime '{}'", id)))
         }
+    }
+
+    pub fn pull_dependencies(&mut self) -> Result<()> {
+        let mut changed = false;
+        for tool_id in self.config.iter_tools() {
+            let tool = self.config.get_tool_spec(tool_id).unwrap();
+            if_chain! {
+                if let Some(ref rti) = tool.include;
+                if let Some(ref tool_dir_base) = tool.tool_dir_base;
+                if fs::metadata(&tool_dir_base).is_err();
+                then {
+                    self.log_step(&format!("Pulling dependencies for '{}'", tool_id));
+                    update_remote_tool(&tool_dir_base, &rti)?;
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            self.config = Config::from_env()?;
+        }
+
+        Ok(())
     }
 
     pub fn update(&self) -> Result<()> {

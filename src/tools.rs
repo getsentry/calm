@@ -49,11 +49,11 @@ impl<'a> Tool<'a> {
         &self.id
     }
 
-    pub fn tool_dir(&self) -> &Path {
-        if let Some(ref path) = self.spec.tool_dir {
-            &*path
+    pub fn tool_dir<'b>(&'b self) -> Cow<'b, Path> {
+        if let Some(rv) = self.spec.tool_dir_prefix() {
+            rv
         } else {
-            self.ctx.config().config_dir()
+            Cow::Borrowed(self.ctx.config().config_dir())
         }
     }
 

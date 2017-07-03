@@ -1,5 +1,6 @@
 use std::fs;
 use std::env;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::collections::hash_map::Keys as HashMapKeys;
@@ -7,6 +8,7 @@ use std::collections::hash_map::Keys as HashMapKeys;
 use prelude::*;
 use utils::serde::{Pattern, LinkSpec};
 
+use sha1::Sha1;
 use serde_yaml;
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -68,18 +70,31 @@ pub struct RuntimeConfig {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum RemoteToolInclude {
+    Git {
+        git: String,
+        rev: Option<String>,
+        path: Option<String>,
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct ToolSpec {
     #[serde(skip)]
-    pub tool_dir: Option<PathBuf>,
-    pub name: Option<String>,
+    pub tool_dir_base: Option<PathBuf>,
+    pub include: Option<RemoteToolInclude>,
     pub description: Option<String>,
     #[serde(default)]
     pub runtimes: HashMap<String, RuntimeConfig>,
-    #[serde(default)]
-    pub provides: Vec<String>,
     #[serde(rename="install", default)]
     pub install_steps: Vec<ToolStep>,
     pub lint: Option<LintSpec>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct StandaloneToolConfig {
+    tool: ToolSpec,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -100,6 +115,7 @@ pub struct ConfigValues {
 pub struct Config {
     filename: PathBuf,
     config_dir: PathBuf,
+    cache_dir: PathBuf,
     values: ConfigValues,
 }
 
@@ -191,35 +207,77 @@ impl ToolStep {
     }
 }
 
+fn merge_tool_config(tool: &mut ToolSpec, cache_dir: &Path) -> Result<()> {
+    tool.tool_dir_base = Some(cache_dir.join("tools")
+        .join(tool.include.as_ref().unwrap().checksum()));
+
+    let mut tool_config = tool.tool_dir_base.as_ref().unwrap().to_path_buf();
+    if let Some(prefix) = tool.tool_dir_prefix() {
+        tool_config.push(prefix);
+    }
+    tool_config.push("calmtool.yml");
+
+    if fs::metadata(&tool_config).is_ok() {
+        let mut f = fs::File::open(&tool_config)?;
+        let rt: StandaloneToolConfig = serde_yaml::from_reader(&mut f)
+            .chain_err(|| "Failed to parse calmtool.yml")?;
+
+        if let Some(val) = rt.tool.description {
+            tool.description = Some(val);
+        }
+        for (id, rtc) in rt.tool.runtimes.into_iter() {
+            tool.runtimes.insert(id, rtc);
+        }
+        for ts in rt.tool.install_steps.into_iter() {
+            tool.install_steps.push(ts);
+        }
+        if let Some(val) = rt.tool.lint {
+            tool.lint = Some(val);
+        }
+    }
+
+    Ok(())
+}
+
 impl Config {
     pub fn from_env() -> Result<Config> {
         let filename = find_config_file()?;
+        let config_dir = filename.parent().unwrap().to_path_buf();
+
         let mut f = fs::File::open(&filename)
             .chain_err(|| "Could not open .calm/calm.yml")?;
         let mut rv: ConfigValues = serde_yaml::from_reader(&mut f)
             .chain_err(|| "Failed to parse .calm/calm.yml")?;
 
-        // currently all tools come from the main .calm folder so this
-        // is what we set as tool directory.  Once we permit tools to
-        // be coming from external sources this will change.
-        let config_dir = filename.parent().unwrap().to_path_buf();
+        let mut sha = Sha1::new();
+        sha.update(filename.to_string_lossy().as_bytes());
+        let mut cache_dir = env::home_dir().ok_or(
+            Error::from("could not find home folder"))?;
+        cache_dir.push(".calm");
+        cache_dir.push("env-cache");
+        cache_dir.push(sha.digest().to_string());
+
+        // resolve includes and fail silently
         for mut tool in rv.tools.values_mut() {
-            tool.tool_dir = Some(config_dir.clone());
+            if tool.include.is_some() {
+                merge_tool_config(&mut tool, &cache_dir)?;
+            }
         }
 
         Ok(Config {
             filename: filename,
             config_dir: config_dir,
+            cache_dir: cache_dir,
             values: rv,
         })
     }
 
-    pub fn filename(&self) -> &Path {
-        &self.filename
-    }
-
     pub fn config_dir(&self) -> &Path {
         &self.config_dir
+    }
+
+    pub fn cache_dir(&self) -> &Path {
+        &self.cache_dir
     }
 
     pub fn iter_tools(&self) -> HashMapKeys<String, ToolSpec> {
@@ -228,5 +286,57 @@ impl Config {
 
     pub fn get_tool_spec(&self, id: &str) -> Option<&ToolSpec> {
         self.values.tools.get(id)
+    }
+}
+
+impl ToolSpec {
+    pub fn tool_dir_prefix<'a>(&'a self) -> Option<Cow<'a, Path>> {
+        if let Some(ref tool_dir) = self.tool_dir_base {
+            Some(if_chain! {
+                if let Some(ref include) = self.include;
+                if let Some(ref prefix) = include.local_path();
+                then {
+                    Cow::Owned(tool_dir.join(prefix))
+                } else {
+                    Cow::Borrowed(tool_dir)
+                }
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl RemoteToolInclude {
+
+    pub fn local_path(&self) -> Option<&Path> {
+        match *self {
+            RemoteToolInclude::Git { ref path, .. } => {
+                if let &Some(ref path) = path {
+                    let path = Path::new(path);
+                    if let Ok(rest) = path.strip_prefix("/") {
+                        return Some(rest);
+                    } else {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub fn checksum(&self) -> String {
+        let mut m = Sha1::new();
+        match *self {
+            RemoteToolInclude::Git { ref git, ref rev, .. } => {
+                m.update(git.as_bytes());
+                m.update(b"\x00");
+                if let &Some(ref rev) = rev {
+                    m.update(rev.as_bytes());
+                    m.update(b"\x00");
+                }
+            }
+        }
+        m.digest().to_string()
     }
 }

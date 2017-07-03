@@ -42,6 +42,6 @@ pub trait Runtime<'a>: Debug + Sync {
     /// context.  This will also return a path in case the runtime
     /// has not been created in the context yet.
     fn get_path(&'a self) -> PathBuf {
-        self.ctx().cache_dir().join(self.id().to_string())
+        self.ctx().cache_dir().join("rt").join(self.id().to_string())
     }
 }

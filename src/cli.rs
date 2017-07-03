@@ -31,9 +31,10 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
                 .index(1)
                 .multiple(true)));
     let matches = app.get_matches_from_safe(args)?;
-    let ctx = Context::new(config)?;
+    let mut ctx = Context::new(config)?;
 
     if let Some(_sub_matches) = matches.subcommand_matches("update") {
+        ctx.pull_dependencies()?;
         ctx.update()?;
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
         let paths = sub_matches.values_of("files")
