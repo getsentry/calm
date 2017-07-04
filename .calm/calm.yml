@@ -1,0 +1,12 @@
+tools:
+  cargo-check:
+    runtimes:
+      python: {}
+    lint:
+      patterns:
+        - '*.rs'
+      run:
+        - cmd: "${CALM_TOOL_PATH}/run-cargo-check.py"
+          description: Running cargo check
+          stdout:
+            parse-lint-json: true
