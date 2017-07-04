@@ -73,6 +73,7 @@ impl<'a> Tool<'a> {
                            value.to_string_lossy().to_string());
             })?;
         }
+
         env.insert("CALM_TOOL_PATH".to_string(),
                    self.tool_dir().display().to_string());
 

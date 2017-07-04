@@ -210,10 +210,9 @@ impl ToolStep {
     }
 }
 
-fn merge_tool_config(tool: &mut ToolSpec, cache_dir: &Path) -> Result<()> {
+fn merge_tool_config(tool: &mut ToolSpec, config_dir: &Path, cache_dir: &Path) -> Result<()> {
     tool.tool_dir_base = Some(tool.include
-        .as_ref().unwrap().local_path_reference(cache_dir).to_path_buf());
-
+        .as_ref().unwrap().local_path_reference(config_dir, cache_dir));
     let mut tool_config = tool.tool_dir_base.as_ref().unwrap().to_path_buf();
     if let Some(prefix) = tool.tool_dir_prefix() {
         tool_config.push(prefix);
@@ -263,7 +262,7 @@ impl Config {
         // resolve includes and fail silently
         for mut tool in rv.tools.values_mut() {
             if tool.include.is_some() {
-                merge_tool_config(&mut tool, &cache_dir)?;
+                merge_tool_config(&mut tool, &config_dir, &cache_dir)?;
             }
         }
 
@@ -331,13 +330,14 @@ impl RemoteToolInclude {
         None
     }
 
-    pub fn local_path_reference<'a>(&'a self, cache_dir: &Path) -> Cow<'a, Path> {
+    pub fn local_path_reference<'a>(&'a self, config_dir: &Path,
+                                    cache_dir: &Path) -> PathBuf {
         match *self {
             RemoteToolInclude::Git { .. } => {
-                Cow::Owned(cache_dir.join("tools").join(self.checksum()))
+                cache_dir.join("tools").join(self.checksum())
             }
             RemoteToolInclude::Path { ref path } => {
-                Cow::Borrowed(path.as_path())
+                config_dir.join(path)
             }
         }
     }

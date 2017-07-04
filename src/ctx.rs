@@ -135,7 +135,9 @@ impl Context {
             pb.inc(1);
         }
 
-        fs::remove_dir_all(self.cache_dir())?;
+        if fs::metadata(self.cache_dir()).is_ok() {
+            fs::remove_dir_all(self.cache_dir())?;
+        }
 
         pb.finish_and_clear();
 
