@@ -21,11 +21,10 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         .setting(AppSettings::VersionlessSubcommands)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .global_setting(AppSettings::UnifiedHelpMessage)
-        .arg(Arg::with_name("no_update")
-             .long("no-update")
-             .help("Disables the update step"))
         .subcommand(App::new("update")
             .about("Update all calm toolchains"))
+        .subcommand(App::new("clear-cache")
+            .about("Clears the runtime cache"))
         .subcommand(App::new("lint")
             .about("Lint all files in the project or a subset")
             .arg(Arg::with_name("fmt")
@@ -46,6 +45,8 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
 
     if let Some(_sub_matches) = matches.subcommand_matches("update") {
         cmd_update_installation(&mut ctx)
+    } else if let Some(_sub_matches) = matches.subcommand_matches("clear-cache") {
+        cmd_clear_cache(&ctx)
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
         cmd_lint(&ctx, sub_matches)
     } else {
@@ -56,6 +57,11 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
 fn cmd_update_installation(ctx: &mut Context) -> Result<()> {
     ctx.pull_dependencies()?;
     ctx.update()?;
+    Ok(())
+}
+
+fn cmd_clear_cache(ctx: &Context) -> Result<()> {
+    ctx.clear_cache()?;
     Ok(())
 }
 

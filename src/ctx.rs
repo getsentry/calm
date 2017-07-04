@@ -12,6 +12,8 @@ use rt::common::Runtime;
 
 use console::{style, Term, user_attended};
 use parking_lot::Mutex;
+use walkdir::WalkDir;
+use indicatif::ProgressBar;
 
 #[derive(Debug)]
 struct Log {
@@ -113,6 +115,30 @@ impl Context {
             "javascript" => Ok(Box::new(rt::js::JsRuntime::create(self, cfg))),
             _ => Err(Error::from(format!("Could not find runtime '{}'", id)))
         }
+    }
+
+    pub fn clear_cache(&self) -> Result<()> {
+        let wd = WalkDir::new(self.cache_dir());
+        let count = wd.into_iter().count();
+        let pb = ProgressBar::new(count as u64);
+
+        for entry in WalkDir::new(self.cache_dir()) {
+            if_chain! {
+                if let Ok(entry) = entry;
+                if let Ok(md) = entry.metadata();
+                if !md.is_dir();
+                then {
+                    fs::remove_file(entry.path())?;
+                }
+            }
+            pb.inc(1);
+        }
+
+        fs::remove_dir_all(self.cache_dir())?;
+
+        pb.finish_and_clear();
+
+        Ok(())
     }
 
     pub fn pull_dependencies(&mut self) -> Result<()> {

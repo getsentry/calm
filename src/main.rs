@@ -14,6 +14,7 @@ extern crate glob;
 extern crate git2;
 extern crate elementtree;
 extern crate parking_lot;
+extern crate walkdir;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
 
