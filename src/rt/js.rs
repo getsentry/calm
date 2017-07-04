@@ -10,6 +10,7 @@ use rt::common::Runtime;
 use utils::cmd::CommandBuilder;
 
 use sha1::Sha1;
+use console::user_attended;
 
 #[derive(Debug)]
 pub struct JsRuntime<'a> {
@@ -96,8 +97,10 @@ impl<'a> Runtime<'a> for JsRuntime<'a> {
             let mut cmd = CommandBuilder::new("npm");
             cmd
                 .current_dir(&path)
-                .arg("install")
-                .arg("-d");
+                .arg("install");
+            if user_attended() {
+                cmd.arg("-d");
+            }
             self.configure_run_step(&mut cmd)?;
             cmd.spawn()?.wait()?;
         }

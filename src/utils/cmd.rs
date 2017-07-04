@@ -4,11 +4,13 @@ use std::ffi::{OsStr, OsString};
 use std::env;
 use std::process;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use indicatif::{ProgressBar, ProgressStyle};
 use crossbeam;
-use console::style;
+use console::{style, user_attended};
 use regex::{Regex, Captures};
+use parking_lot::Mutex;
 
 use prelude::*;
 
@@ -44,7 +46,8 @@ impl<'a> Default for CommandHandlers<'a> {
 
 fn process<'a, R: Read>(r: R, prefix: &str, bar: &ProgressBar,
                         mut f: Option<&mut Box<FnMut(&str)
-                            -> Result<Cow<'static, str>> + Send + Sync + 'a>>)
+                            -> Result<Cow<'static, str>> + Send + Sync + 'a>>,
+                        last_output: Arc<Mutex<Option<String>>>)
     -> Result<()>
 {
     bar.set_message(&format!("{}: Running ...", style(prefix).cyan()));
@@ -55,10 +58,18 @@ fn process<'a, R: Read>(r: R, prefix: &str, bar: &ProgressBar,
         } else {
             Cow::Borrowed(line.trim())
         };
-        if !text.is_empty() {
-            bar.set_message(&format!("{}: {}",
-                                     style(prefix).cyan(),
-                                     text));
+        if user_attended() {
+            if !text.is_empty() {
+                bar.set_message(&format!("{}: {}",
+                                         style(prefix).cyan(),
+                                         text));
+            }
+        } else if !text.is_empty() {
+            let mut last = last_output.lock();
+            if last.as_ref().map(|x| x.as_str()) != Some(&text) {
+                println!("  {}", text);
+                *last = Some(text.to_string());
+            }
         }
     }
     Ok(())
@@ -66,12 +77,17 @@ fn process<'a, R: Read>(r: R, prefix: &str, bar: &ProgressBar,
 
 impl Command {
     fn new(child: process::Child, cmd_name: String) -> Command {
-        let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .tick_chars("⢄⢂⢁⡁⡈⡐⡠ ")
-            .template("{prefix:.cyan} {spinner:.green} {wide_msg}"));
-        pb.set_prefix(">");
-        pb.enable_steady_tick(100);
+        let pb;
+        if user_attended() {
+            pb = ProgressBar::new_spinner();
+            pb.set_style(ProgressStyle::default_spinner()
+                .tick_chars("⢄⢂⢁⡁⡈⡐⡠ ")
+                .template("{prefix:.cyan} {spinner:.green} {wide_msg}"));
+            pb.set_prefix(">");
+            pb.enable_steady_tick(100);
+        } else {
+            pb = ProgressBar::hidden();
+        }
         Command {
             cmd_name: cmd_name,
             bar: pb,
@@ -91,15 +107,19 @@ impl Command {
         let mut on_stderr = handlers.on_stderr.take();
         let on_stderr_mut = on_stderr.as_mut();
 
+        let last_output = Arc::new(Mutex::new(None));
+        let last_output_stdout = last_output.clone();
+        let last_output_stderr = last_output.clone();
+
         let bar = &self.bar;
         {
             let prefix = self.name();
             crossbeam::scope(|scope| {
                 scope.spawn(move || {
-                    process(stdout, prefix, bar, on_stdout_mut).unwrap();
+                    process(stdout, prefix, bar, on_stdout_mut, last_output_stdout).unwrap();
                 });
                 scope.spawn(move || {
-                    process(stderr, prefix, bar, on_stderr_mut).unwrap();
+                    process(stderr, prefix, bar, on_stderr_mut, last_output_stderr).unwrap();
                 });
             });
         }

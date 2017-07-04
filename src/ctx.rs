@@ -10,7 +10,7 @@ use report::Report;
 use rt;
 use rt::common::Runtime;
 
-use console::{style, Term};
+use console::{style, Term, user_attended};
 use parking_lot::Mutex;
 
 #[derive(Debug)]
@@ -90,9 +90,11 @@ impl Context {
     }
 
     pub fn clear_log(&self) {
-        let mut log = self.log.lock();
-        Term::stdout().clear_last_lines(log.lines).unwrap();
-        log.lines = 0;
+        if user_attended() {
+            let mut log = self.log.lock();
+            Term::stdout().clear_last_lines(log.lines).unwrap();
+            log.lines = 0;
+        }
     }
 
     pub fn create_tool<'a>(&'a self, id: &str) -> Result<Tool<'a>> {
