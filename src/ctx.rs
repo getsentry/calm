@@ -83,7 +83,7 @@ impl Context {
 
     pub fn log_step(&self, text: &str) {
         let mut log = self.log.lock();
-        write!(&mut ::std::io::stdout(), "{} {}\n",
+        write!(&mut ::std::io::stderr(), "{} {}\n",
                style(">").dim().bold(),
                text).unwrap();
         log.lines += 1;
@@ -92,7 +92,7 @@ impl Context {
     pub fn clear_log(&self) {
         if user_attended() {
             let mut log = self.log.lock();
-            Term::stdout().clear_last_lines(log.lines).unwrap();
+            Term::stderr().clear_last_lines(log.lines).unwrap();
             log.lines = 0;
         }
     }

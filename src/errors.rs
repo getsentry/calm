@@ -4,6 +4,7 @@ use clap;
 use serde_yaml;
 use serde_json;
 use git2;
+use elementtree;
 
 
 error_chain! {
@@ -19,5 +20,6 @@ error_chain! {
         Yaml(serde_yaml::Error);
         Json(serde_json::Error);
         Git(git2::Error);
+        Xml(elementtree::Error);
     }
 }

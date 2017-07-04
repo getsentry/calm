@@ -1,3 +1,4 @@
+use std::io;
 use std::fs;
 use std::str;
 use std::env;
@@ -10,6 +11,7 @@ use std::borrow::Cow;
 use prelude::*;
 use ctx::Context;
 use tools::Tool;
+use elementtree::Element;
 
 use regex::Regex;
 use console::{Style, style};
@@ -42,6 +44,7 @@ impl Default for Level {
 pub enum Format {
     Human,
     Simple,
+    Checkstyle
 }
 
 impl str::FromStr for Format {
@@ -51,6 +54,7 @@ impl str::FromStr for Format {
         match s {
             "human" => Ok(Format::Human),
             "simple" => Ok(Format::Simple),
+            "checkstyle" => Ok(Format::Checkstyle),
             other => Err(Error::from(format!("Unknown format '{}'", other))),
         }
     }
@@ -197,6 +201,44 @@ impl<'a> Report<'a> {
         self.push_result(res)
     }
 
+    pub fn get_checkstyle_doc(&self) -> Element {
+        let mut rv = Element::new("checkstyle");
+        rv.set_attr("version", "4.3");
+
+        let mut files = HashMap::new();
+        for res in &self.lint_results {
+            files.entry(&res.filename)
+                .or_insert_with(|| vec![])
+                .push(res);
+        }
+
+        for (file, results) in files {
+            let element = rv.append_new_child("file")
+                .set_attr("name", file.display().to_string());
+            for res in results {
+                element.append_new_child("error")
+                    .set_attr("severity", match res.level {
+                        Level::Error => "error",
+                        Level::Warning => "warning",
+                        Level::Info => "info",
+                    })
+                    .set_attr("line", res.line.to_string())
+                    .set_attr("column", res.column.to_string())
+                    .set_attr("source", res.code
+                        .as_ref()
+                        .map(|x| x.as_str())
+                        .unwrap_or("unknown")
+                        .replace(":", "."))
+                    .set_attr("message", res.message
+                        .as_ref()
+                        .map(|x| x.as_str())
+                        .unwrap_or(""));
+            }
+        }
+
+        rv
+    }
+
     fn push_result(&mut self, res: LintResult) -> Result<&LintResult> {
         let idx = self.lint_results.len();
         match res.level {
@@ -224,9 +266,9 @@ impl<'a> Report<'a> {
         self.lint_results.sort();
     }
 
-    pub fn print(&self, format: Format) {
+    pub fn print(&self, format: Format) -> Result<()> {
         if self.lint_results.is_empty() {
-            return;
+            return Ok(());
         }
 
         match format {
@@ -255,6 +297,11 @@ impl<'a> Report<'a> {
                     println!("{}", res.simple_format());
                 }
             }
+            Format::Checkstyle => {
+                let doc = self.get_checkstyle_doc();
+                doc.to_writer(&mut io::stdout())?;
+            }
         }
+        Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::ffi::{OsStr, OsString};
 use std::env;
@@ -67,7 +67,7 @@ fn process<'a, R: Read>(r: R, prefix: &str, bar: &ProgressBar,
         } else if !text.is_empty() {
             let mut last = last_output.lock();
             if last.as_ref().map(|x| x.as_str()) != Some(&text) {
-                println!("  {}", text);
+                write!(&mut ::std::io::stderr(), "  {}\n", text).unwrap();
                 *last = Some(text.to_string());
             }
         }

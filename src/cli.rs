@@ -32,7 +32,7 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
                  .long("format")
                  .short("f")
                  .value_name("FORMAT")
-                 .possible_values(&["human", "simple"])
+                 .possible_values(&["human", "simple", "checkstyle"])
                  .help("Sets the output format"))
             .arg(Arg::with_name("changed_files")
                  .long("changed-files")
@@ -77,7 +77,7 @@ fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
 
     let report = ctx.lint(paths.as_ref().map(|x| &x[..]))?;
     ctx.clear_log();
-    report.print(format.parse().unwrap());
+    report.print(format.parse().unwrap())?;
     if report.has_errors() {
         Err(Error::from(ErrorKind::QuietExit(1)))
     } else {
