@@ -76,6 +76,9 @@ pub enum RemoteToolInclude {
         git: String,
         rev: Option<String>,
         path: Option<String>,
+    },
+    Path {
+        path: PathBuf,
     }
 }
 
@@ -208,8 +211,8 @@ impl ToolStep {
 }
 
 fn merge_tool_config(tool: &mut ToolSpec, cache_dir: &Path) -> Result<()> {
-    tool.tool_dir_base = Some(cache_dir.join("tools")
-        .join(tool.include.as_ref().unwrap().checksum()));
+    tool.tool_dir_base = Some(tool.include
+        .as_ref().unwrap().local_path_reference(cache_dir).to_path_buf());
 
     let mut tool_config = tool.tool_dir_base.as_ref().unwrap().to_path_buf();
     if let Some(prefix) = tool.tool_dir_prefix() {
@@ -294,7 +297,7 @@ impl ToolSpec {
         if let Some(ref tool_dir) = self.tool_dir_base {
             Some(if_chain! {
                 if let Some(ref include) = self.include;
-                if let Some(ref prefix) = include.local_path();
+                if let Some(ref prefix) = include.path_prefix();
                 then {
                     Cow::Owned(tool_dir.join(prefix))
                 } else {
@@ -309,7 +312,7 @@ impl ToolSpec {
 
 impl RemoteToolInclude {
 
-    pub fn local_path(&self) -> Option<&Path> {
+    pub fn path_prefix(&self) -> Option<&Path> {
         match *self {
             RemoteToolInclude::Git { ref path, .. } => {
                 if let &Some(ref path) = path {
@@ -321,8 +324,22 @@ impl RemoteToolInclude {
                     }
                 }
             }
+            RemoteToolInclude::Path { .. } => {
+                return None;
+            }
         }
         None
+    }
+
+    pub fn local_path_reference<'a>(&'a self, cache_dir: &Path) -> Cow<'a, Path> {
+        match *self {
+            RemoteToolInclude::Git { .. } => {
+                Cow::Owned(cache_dir.join("tools").join(self.checksum()))
+            }
+            RemoteToolInclude::Path { ref path } => {
+                Cow::Borrowed(path.as_path())
+            }
+        }
     }
 
     pub fn checksum(&self) -> String {
@@ -335,6 +352,10 @@ impl RemoteToolInclude {
                     m.update(rev.as_bytes());
                     m.update(b"\x00");
                 }
+            }
+            RemoteToolInclude::Path { ref path } => {
+                m.update(path.display().to_string().as_bytes());
+                m.update(b"\x00");
             }
         }
         m.digest().to_string()

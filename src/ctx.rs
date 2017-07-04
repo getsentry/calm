@@ -56,6 +56,7 @@ fn update_remote_tool(path: &Path, rti: &RemoteToolInclude) -> Result<()> {
                 .spawn()?
                 .wait()?;
         }
+        RemoteToolInclude::Path { .. } => {}
     }
     Ok(())
 }
