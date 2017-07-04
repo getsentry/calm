@@ -105,6 +105,7 @@ impl<'a> Tool<'a> {
 
             // configure process
             cmd.search_path(&path);
+            cmd.current_dir(self.ctx.base_dir());
             for (ref key, ref value) in &env {
                 cmd.env(key, value);
             }
@@ -181,13 +182,14 @@ impl<'a> Tool<'a> {
 
     pub fn lint(&self, report: &mut Report, files: Option<&[&Path]>) -> Result<bool> {
         if let Some(ref lint_spec) = self.spec.lint {
+            let base = self.ctx.base_dir();
             let mut failed = false;
             let mut opts = RunStepOptions {
                 report: Some(report),
                 file_args: files.map(|x| x.iter().filter_map(|&x| {
                     for pat in &lint_spec.patterns {
                         if pat.match_path(x) {
-                            return Some(x);
+                            return Some(x.strip_prefix(base).unwrap_or(x));
                         }
                     }
                     None

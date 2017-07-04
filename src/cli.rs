@@ -7,6 +7,7 @@ use std::process;
 use prelude::*;
 use config::Config;
 use ctx::Context;
+use utils::whatchanged::get_changed_files;
 
 use clap::{App, Arg, AppSettings};
 
@@ -33,6 +34,9 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
                  .value_name("FORMAT")
                  .possible_values(&["human", "simple"])
                  .help("Sets the output format"))
+            .arg(Arg::with_name("changed_files")
+                 .long("changed-files")
+                 .help("Lint files changed in the work tree"))
             .arg(Arg::with_name("files")
                 .index(1)
                 .multiple(true)));
@@ -44,8 +48,20 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         ctx.update()?;
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
         let format = sub_matches.value_of("fmt").unwrap_or("human");
-        let paths = sub_matches.values_of("files")
-            .map(|values| values.map(|x| Path::new(x)).collect::<Vec<_>>());
+        let changed_files;
+        let paths: Option<Vec<&Path>>;
+
+        if sub_matches.is_present("changed_files") {
+            changed_files = get_changed_files()?;
+            if changed_files.is_empty() {
+                return Ok(());
+            }
+            paths = Some(changed_files.iter().map(|x| x.as_path()).collect());
+        } else {
+            paths = sub_matches.values_of("files")
+                .map(|values| values.map(|x| Path::new(x)).collect::<Vec<_>>());
+        }
+        
         let report = ctx.lint(paths.as_ref().map(|x| &x[..]))?;
         ctx.clear_log();
         report.print(format.parse().unwrap());

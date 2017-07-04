@@ -3,6 +3,7 @@ use std::io;
 use clap;
 use serde_yaml;
 use serde_json;
+use git2;
 
 
 error_chain! {
@@ -17,5 +18,6 @@ error_chain! {
         Clap(clap::Error);
         Yaml(serde_yaml::Error);
         Json(serde_json::Error);
+        Git(git2::Error);
     }
 }

@@ -11,6 +11,7 @@ extern crate console;
 extern crate crossbeam;
 extern crate regex;
 extern crate glob;
+extern crate git2;
 extern crate parking_lot;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
