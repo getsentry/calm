@@ -145,22 +145,15 @@ impl Context {
         Ok(())
     }
 
-    pub fn lint(&self, files: Option<&[&Path]>) -> Result<bool> {
+    pub fn lint(&self, files: Option<&[&Path]>) -> Result<Report> {
         let mut report = Report::new(self);
-        let mut failed = false;
 
         for tool_id in self.config.iter_tools() {
             let tool = self.create_tool(tool_id)?;
-            if !tool.lint(&mut report, files)? {
-                failed = true;
-            }
+            tool.lint(&mut report, files)?;
         }
 
         report.sort();
-
-        self.clear_log();
-        report.print();
-
-        Ok(!failed)
+        Ok(report)
     }
 }

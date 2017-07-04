@@ -27,6 +27,12 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
             .about("Update all calm toolchains"))
         .subcommand(App::new("lint")
             .about("Lint all files in the project or a subset")
+            .arg(Arg::with_name("fmt")
+                 .long("format")
+                 .short("f")
+                 .value_name("FORMAT")
+                 .possible_values(&["human", "simple"])
+                 .help("Sets the output format"))
             .arg(Arg::with_name("files")
                 .index(1)
                 .multiple(true)));
@@ -37,9 +43,13 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         ctx.pull_dependencies()?;
         ctx.update()?;
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
+        let format = sub_matches.value_of("fmt").unwrap_or("human");
         let paths = sub_matches.values_of("files")
             .map(|values| values.map(|x| Path::new(x)).collect::<Vec<_>>());
-        if !ctx.lint(paths.as_ref().map(|x| &x[..]))? {
+        let report = ctx.lint(paths.as_ref().map(|x| &x[..]))?;
+        ctx.clear_log();
+        report.print(format.parse().unwrap());
+        if report.has_errors() {
             return Err(Error::from(ErrorKind::QuietExit(1)));
         }
     } else {
