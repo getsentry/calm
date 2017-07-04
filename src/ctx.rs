@@ -28,16 +28,26 @@ pub struct Context {
 fn update_remote_tool(path: &Path, rti: &RemoteToolInclude) -> Result<()> {
     match *rti {
         RemoteToolInclude::Git { ref git, ref rev, .. } => {
-            fs::create_dir_all(&path)?;
-            let mut cmd = CommandBuilder::new("git");
-            cmd
-                .arg("clone")
-                .arg(git)
-                .arg(".")
-                .current_dir(&path);
+            let mut cmd;
+            if fs::metadata(&path).is_err() {
+                fs::create_dir_all(&path)?;
+                cmd = CommandBuilder::new("git");
+                cmd
+                    .arg("clone")
+                    .arg(git)
+                    .arg(".")
+                    .current_dir(&path);
 
-            if let &Some(ref rev) = rev {
-                cmd.arg("-b").arg(rev);
+                if let &Some(ref rev) = rev {
+                    cmd.arg("-b").arg(rev);
+                }
+            } else if rev.is_none() {
+                fs::create_dir_all(&path)?;
+                cmd = CommandBuilder::new("git");
+                cmd
+                    .arg("pull");
+            } else {
+                return Ok(());
             }
 
             cmd
@@ -110,7 +120,6 @@ impl Context {
             if_chain! {
                 if let Some(ref rti) = tool.include;
                 if let Some(ref tool_dir_base) = tool.tool_dir_base;
-                if fs::metadata(&tool_dir_base).is_err();
                 then {
                     self.log_step(&format!("Pulling dependencies for '{}'", tool_id));
                     update_remote_tool(&tool_dir_base, &rti)?;
