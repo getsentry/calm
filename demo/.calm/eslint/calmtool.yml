@@ -1,0 +1,19 @@
+tool:
+  runtimes:
+    javascript:
+      packages:
+        eslint: 4.1.1
+        eslint-config-google: 0.8.0
+  install:
+    - link: .eslintrc.json
+    - link: .eslintignore
+  lint:
+    patterns:
+      - '*.js'
+      - '*.jsx'
+    run:
+      - cmd: "${CALM_TOOL_PATH}/run-eslint.js"
+        description: Linting with eslint
+        stdout:
+          # This tells calm to parse the standardized calm json output.
+          parse-lint-json: true

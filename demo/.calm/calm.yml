@@ -1,11 +1,7 @@
 tools:
   flake8:
     include:
-      #git: https://github.com/mitsuhiko/calm-test
-      #path: /flake8
-      path: /tmp/calm-flake8/flake8
+      path: flake8
   eslint:
     include:
-      #git: https://github.com/mitsuhiko/calm-test
-      #path: /eslint
-      path: /tmp/calm-flake8/eslint
+      path: eslint
