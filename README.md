@@ -12,7 +12,12 @@ Currently only supports linters.  For a default project see `demo`
 ## Commands
 
 ``calm update``
-  Updates the toolchain and links things.
+  Updates the toolchain and links things.  Run this once to update the
+  required toolchains.
 
 ``calm lint``
-  Runs the configured linters.
+  Runs the configured linters and reports an exit status.
+
+``calm hook``
+  Manage hooks.  `--install` installs the git hook, `--uninstall`
+  removes it.  Currently always runs the linter.
