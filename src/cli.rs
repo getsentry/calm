@@ -7,7 +7,9 @@ use std::process;
 use prelude::*;
 use config::Config;
 use ctx::Context;
+use report::Format;
 use utils::whatchanged::get_changed_files;
+use utils::hooks::HookManager;
 
 use clap::{App, Arg, AppSettings, ArgMatches};
 
@@ -25,6 +27,17 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
             .about("Update all calm toolchains"))
         .subcommand(App::new("clear-cache")
             .about("Clears the runtime cache"))
+        .subcommand(App::new("hook")
+            .about("Manages the git hook integration")
+            .arg(Arg::with_name("install")
+                 .long("install")
+                 .help("Installs a pre-commit hook for git"))
+            .arg(Arg::with_name("pre_commit")
+                 .long("exec-pre-commit")
+                 .help("Execute the pre-commit hook"))
+            .arg(Arg::with_name("uninstall")
+                 .long("uninstall")
+                 .help("Uninstalls a pre-commit hook for git")))
         .subcommand(App::new("lint")
             .about("Lint all files in the project or a subset")
             .arg(Arg::with_name("fmt")
@@ -49,6 +62,8 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         cmd_clear_cache(&ctx)
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
         cmd_lint(&ctx, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("hook") {
+        cmd_hook(&ctx, sub_matches)
     } else {
         unreachable!();
     }
@@ -89,6 +104,37 @@ fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn cmd_hook(ctx: &Context, matches: &ArgMatches) -> Result<()> {
+    let mgr = HookManager::new()?;
+    if matches.is_present("install") {
+        mgr.install_hooks()?;
+        println!("Enabled hooks.");
+    } else if matches.is_present("uninstall") {
+        mgr.uninstall_hooks()?;
+        println!("Disabled hooks.");
+    } else if matches.is_present("pre_commit") {
+        let changed_files = get_changed_files()?;
+        if !changed_files.is_empty() {
+            let paths: Vec<_> = changed_files.iter().map(|x| x.as_path()).collect();
+            let report = ctx.lint(Some(&paths[..]))?;
+            ctx.clear_log();
+            report.print(Format::Human)?;
+            if report.has_errors() {
+                return Err(Error::from(ErrorKind::QuietExit(1)));
+            }
+        }
+    } else {
+        let status = mgr.status()?;
+        println!("Current hook status:");
+        println!("  pre-commit hook: {}", if status.pre_commit_installed {
+            "installed"
+        } else {
+            "not installed"
+        });
+    }
+    Ok(())
 }
 
 fn run() -> Result<()> {
