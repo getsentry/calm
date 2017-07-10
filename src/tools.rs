@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::borrow::Cow;
 use std::os::unix::fs::symlink;
 use std::sync::Arc;
@@ -55,6 +55,13 @@ impl<'a> Tool<'a> {
         } else {
             Cow::Borrowed(self.ctx.config().config_dir())
         }
+    }
+
+    pub fn add_search_paths(&self, path: &mut Vec<PathBuf>) -> Result<()> {
+        for rt in &self.runtimes {
+            rt.add_search_paths(path)?;
+        }
+        Ok(())
     }
 
     pub fn run_step(&self, step: &ToolStep,

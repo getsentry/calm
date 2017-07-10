@@ -51,7 +51,14 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
                  .help("Lint files changed in the current git work tree."))
             .arg(Arg::with_name("files")
                 .index(1)
-                .multiple(true)));
+                .multiple(true)))
+        .subcommand(App::new("which")
+            .about("Given a command returns the path where it lives.")
+            .arg(Arg::with_name("cmd")
+                 .index(1)
+                 .value_name("COMMAND")
+                 .required(true)
+                 .help("The command to find")));
 
     let matches = app.get_matches_from_safe(args)?;
     let mut ctx = Context::new(config)?;
@@ -64,6 +71,8 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         cmd_lint(&ctx, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("hook") {
         cmd_hook(&ctx, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("which") {
+        cmd_which(&ctx, sub_matches)
     } else {
         unreachable!();
     }
@@ -136,6 +145,16 @@ fn cmd_hook(ctx: &Context, matches: &ArgMatches) -> Result<()> {
         });
     }
     Ok(())
+}
+
+fn cmd_which(ctx: &Context, matches: &ArgMatches) -> Result<()> {
+    let cmd = matches.value_of("cmd").unwrap();
+    if let Some(path) = ctx.find_command(cmd)? {
+        println!("{}", path.display());
+        Ok(())
+    } else {
+        Err(ErrorKind::QuietExit(1).into())
+    }
 }
 
 fn run() -> Result<()> {

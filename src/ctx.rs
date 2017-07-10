@@ -1,4 +1,5 @@
 use std::fs;
+use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -14,6 +15,7 @@ use console::{style, Term, user_attended};
 use parking_lot::Mutex;
 use walkdir::WalkDir;
 use indicatif::ProgressBar;
+use which::which_in;
 
 #[derive(Debug)]
 struct Log {
@@ -186,5 +188,29 @@ impl Context {
 
         report.sort();
         Ok(report)
+    }
+
+    pub fn find_command(&self, cmd_name: &str) -> Result<Option<PathBuf>> {
+        let mut pathstr = String::new();
+        let mut first = true;
+        for tool_id in self.config.iter_tools() {
+            let t = self.create_tool(tool_id)?;
+            let mut paths = vec![];
+            t.add_search_paths(&mut paths)?;
+            for path in paths {
+                if first {
+                    first = false;
+                } else {
+                    pathstr.push(':');
+                }
+                pathstr.push_str(&path.display().to_string());
+            }
+        }
+        let here = env::current_dir()?;
+        if let Ok(rv) = which_in(cmd_name, Some(pathstr), here) {
+            Ok(Some(rv))
+        } else {
+            Ok(None)
+        }
     }
 }
