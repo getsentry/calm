@@ -18,7 +18,6 @@ args = []
 for arg in sys.argv[1:]:
     args.append('--filename=%s' % os.path.join('.', arg))
 
-open('/tmp/test.txt', 'w').write(json.dumps(args))
 c = subprocess.Popen(['flake8'] + args, stdout=subprocess.PIPE)
 
 while 1:
