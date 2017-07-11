@@ -62,7 +62,7 @@ impl str::FromStr for Format {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct LintResult {
-    pub filename: PathBuf,
+    pub filename: Option<PathBuf>,
     pub line: u64,
     pub column: u64,
     pub code: Option<String>,
@@ -77,14 +77,16 @@ pub struct LintResultSimpleFormat<'a> {
 
 impl fmt::Display for LintResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if_chain! {
-            if let Ok(p) = env::current_dir();
-            if let Ok(prefix) = self.filename.strip_prefix(&p);
-            then {
-                write!(f, "{}", style(prefix.display()).cyan())?;
-            }
-            else {
-                write!(f, "{}", style(self.filename.display()).cyan())?;
+        if let Some(ref filename) = self.filename {
+            if_chain! {
+                if let Ok(p) = env::current_dir();
+                if let Ok(prefix) = filename.strip_prefix(&p);
+                then {
+                    write!(f, "{}", style(prefix.display()).cyan())?;
+                }
+                else {
+                    write!(f, "{}", style(filename.display()).cyan())?;
+                }
             }
         }
 
@@ -97,7 +99,8 @@ impl fmt::Display for LintResult {
 
         if_chain! {
             if f.alternate() && self.line > 0;
-            if let Ok(sf) = fs::File::open(&self.filename);
+            if let Some(ref filename) = self.filename;
+            if let Ok(sf) = fs::File::open(filename);
             if let Some(Ok(line)) = BufReader::new(sf).lines().skip(self.line as usize - 1).next();
             then {
                 let stripped_line = line.trim_left();
@@ -123,14 +126,16 @@ impl fmt::Display for LintResult {
 
 impl<'a> fmt::Display for LintResultSimpleFormat<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if_chain! {
-            if let Ok(p) = env::current_dir();
-            if let Ok(prefix) = self.lr.filename.strip_prefix(&p);
-            then {
-                write!(f, "{}", prefix.display())?;
-            }
-            else {
-                write!(f, "{}", self.lr.filename.display())?;
+        if let Some(ref filename) = self.lr.filename {
+            if_chain! {
+                if let Ok(p) = env::current_dir();
+                if let Ok(prefix) = filename.strip_prefix(&p);
+                then {
+                    write!(f, "{}", prefix.display())?;
+                }
+                else {
+                    write!(f, "{}", filename.display())?;
+                }
             }
         }
 
@@ -174,10 +179,12 @@ impl<'a> Report<'a> {
     pub fn add_match_lint_result(&mut self, tool: &Tool, matches: &HashMap<Cow<str>, Cow<str>>)
         -> Result<&LintResult>
     {
-        let f: &str = &matches.get("filename").ok_or_else(||
-            Error::from("No filename in lint result pattern"))?;
+        let f = match matches.get("filename") {
+            Some(f) => Some(self.ctx.base_dir().join(&f as &str).canonicalize()?),
+            None => None,
+        };
         self.push_result(LintResult {
-            filename: self.ctx.base_dir().join(f).canonicalize()?,
+            filename: f,
             line: matches.get("line").and_then(|x| x.parse().ok()).unwrap_or(0),
             column: matches.get("column").and_then(|x| x.parse().ok()).unwrap_or(0),
             code: matches.get("code").map(|x| format!("{}:{}", tool.id(), x)),
@@ -196,7 +203,9 @@ impl<'a> Report<'a> {
     pub fn add_lint_result(&mut self, tool: &Tool, mut res: LintResult)
         -> Result<&LintResult>
     {
-        res.filename = self.ctx.base_dir().join(&res.filename).canonicalize()?;
+        if let Some(filename) = res.filename {
+            res.filename = Some(self.ctx.base_dir().join(&filename).canonicalize()?);
+        }
         res.code = res.code.map(|code| format!("{}:{}", tool.id(), code));
         self.push_result(res)
     }
@@ -213,8 +222,12 @@ impl<'a> Report<'a> {
         }
 
         for (file, results) in files {
+            let name = match *file {
+                Some(ref filename) => filename.display().to_string(),
+                None => "<no file>".to_string(),
+            };
             let element = rv.append_new_child("file")
-                .set_attr("name", file.display().to_string());
+                .set_attr("name", name);
             for res in results {
                 element.append_new_child("error")
                     .set_attr("severity", match res.level {

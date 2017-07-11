@@ -145,8 +145,15 @@ impl<'a> Tool<'a> {
                                         if parse_lines.report_match == ReportPatternMatch::LintResult {
                                             let mut rep = report.lock();
                                             let res = rep.add_match_lint_result(self, &m)?;
-                                            return Ok(Cow::Owned(format!(
-                                                "Found issue in {}", res.filename.display())));
+                                            return Ok(match res.filename {
+                                                Some(ref filename) => {
+                                                    Cow::Owned(format!(
+                                                        "Found issue in {}", filename.display()))
+                                                },
+                                                None => {
+                                                    Cow::Borrowed("Found new general issue")
+                                                }
+                                            });
                                         }
                                     }
                                     Ok(Cow::Borrowed("Linting ..."))
