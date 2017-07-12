@@ -8,5 +8,5 @@ tool:
       - '*.js'
       - '*.jsx'
     run:
-      - cmd: prettier --single-quote --bracket-spacing=false --print-width=90 --jsx-bracket-same-line=true
+      - cmd: prettier --write --single-quote --bracket-spacing=false --print-width=90 --jsx-bracket-same-line=true
         description: Formatting with prettier

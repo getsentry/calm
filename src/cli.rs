@@ -199,7 +199,11 @@ fn cmd_format(ctx: &Context, matches: &ArgMatches) -> Result<()> {
 
     let rv = ctx.format(&paths)?;
     ctx.clear_log();
-    rv.print_diff()?;
+    if matches.is_present("write") {
+        rv.apply()?;
+    } else {
+        rv.print_diff()?;
+    }
     Ok(())
 }
 

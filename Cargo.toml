@@ -11,6 +11,7 @@ version = "0.1.0"
 [dependencies]
 console = "0.5.0"
 crossbeam = "0.2.10"
+difflib = "0.2.0"
 dotenv = "0.10.0"
 elementtree = "0.5.0"
 error-chain = "0.10.0"
@@ -30,6 +31,10 @@ sha1 = "0.2.0"
 tempfile = "2.1.5"
 walkdir = "1.0.7"
 which = "1.0.2"
+
+[replace.'difflib:0.2.0']
+git = "https://github.com/mitsuhiko/difflib"
+rev = "76384c2568a927c6b864a3b4be52d66cc7127cca"
 
 [dependencies.clap]
 default-features = false

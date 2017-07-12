@@ -242,7 +242,35 @@ impl<'a> Tool<'a> {
         }
     }
 
-    pub fn format(&self, fr: &mut FormatResult, files: &[&Path]) -> Result<()> {
-        Ok(())
+    pub fn format(&self, fr: &mut FormatResult, files: &[&Path]) -> Result<bool> {
+        if let Some(ref format_spec) = self.spec.format {
+            let mut failed = false;
+            let mut file_args = vec![];
+            for file in files.iter() {
+                for pat in &format_spec.patterns {
+                    if pat.match_path(file) {
+                        file_args.push(fr.get_scratch_file(file)?);
+                        break;
+                    }
+                }
+            }
+
+            if file_args.is_empty() {
+                return Ok(true);
+            }
+
+            let mut opts = RunStepOptions {
+                report: None,
+                file_args: file_args,
+            };
+            for step in &format_spec.run {
+                if !self.run_step(step, Some(&mut opts))? {
+                    failed = true;
+                }
+            }
+            Ok(!failed)
+        } else {
+            Ok(true)
+        }
     }
 }

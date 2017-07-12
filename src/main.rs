@@ -18,6 +18,7 @@ extern crate walkdir;
 extern crate which;
 extern crate tempfile;
 extern crate notify;
+extern crate difflib;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
 

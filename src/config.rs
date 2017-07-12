@@ -243,6 +243,9 @@ fn merge_tool_config(tool: &mut ToolSpec, config_dir: &Path, cache_dir: &Path) -
         if let Some(val) = rt.tool.lint {
             tool.lint = Some(val);
         }
+        if let Some(val) = rt.tool.format {
+            tool.format = Some(val);
+        }
     }
 
     Ok(())
