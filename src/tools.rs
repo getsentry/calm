@@ -196,6 +196,17 @@ impl<'a> Tool<'a> {
         Ok(())
     }
 
+    pub fn does_lint_file(&self, path: &Path) -> Result<bool> {
+        if let Some(ref lint_spec) = self.spec.lint {
+            for pat in &lint_spec.patterns {
+                if pat.match_path(path) {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub fn lint(&self, report: &mut Report, files: Option<&[&Path]>) -> Result<bool> {
         if let Some(ref lint_spec) = self.spec.lint {
             let base = self.ctx.base_dir();

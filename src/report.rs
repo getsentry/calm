@@ -40,9 +40,10 @@ impl Default for Level {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub enum Format {
     Human,
+    HumanExtended,
     Simple,
     Checkstyle
 }
@@ -53,6 +54,7 @@ impl str::FromStr for Format {
     fn from_str(s: &str) -> Result<Format> {
         match s {
             "human" => Ok(Format::Human),
+            "human-extended" => Ok(Format::HumanExtended),
             "simple" => Ok(Format::Simple),
             "checkstyle" => Ok(Format::Checkstyle),
             other => Err(Error::from(format!("Unknown format '{}'", other))),
@@ -280,30 +282,34 @@ impl<'a> Report<'a> {
     }
 
     pub fn print(&self, format: Format) -> Result<()> {
-        if self.lint_results.is_empty() {
+        if self.lint_results.is_empty() && format != Format::HumanExtended {
             return Ok(());
         }
 
         match format {
-            Format::Human => {
+            Format::Human | Format::HumanExtended => {
                 for res in &self.lint_results {
                     println!("{:#}", res);
                 }
 
-                let style = if self.has_errors() {
-                    Style::new().bold().red()
+                if self.lint_results.is_empty() {
+                    println!("{}", style("Lint passed").green());
                 } else {
-                    Style::new().bold().yellow()
-                };
+                    let style = if self.has_errors() {
+                        Style::new().bold().red()
+                    } else {
+                        Style::new().bold().yellow()
+                    };
 
-                println!("");
-                println!("{}", style.apply_to(format!(
-                    "Lint finished with {} error{} and {} warning{}.",
-                    self.error_count(),
-                    if self.error_count() != 1 { "s" } else { "" },
-                    self.warnings_count(),
-                    if self.warnings_count() != 1 { "s" } else { "" }
-                )));
+                    println!("");
+                    println!("{}", style.apply_to(format!(
+                        "Lint finished with {} error{} and {} warning{}.",
+                        self.error_count(),
+                        if self.error_count() != 1 { "s" } else { "" },
+                        self.warnings_count(),
+                        if self.warnings_count() != 1 { "s" } else { "" }
+                    )));
+                }
             }
             Format::Simple => {
                 for res in &self.lint_results {

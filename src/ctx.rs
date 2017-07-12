@@ -206,6 +206,16 @@ impl Context {
         Ok(rv)
     }
 
+    pub fn is_lintable_file<P: AsRef<Path>>(&self, p: P) -> Result<bool> {
+        for tool_id in self.config.iter_tools() {
+            let t = self.create_tool(tool_id)?;
+            if t.does_lint_file(p.as_ref())? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub fn find_command(&self, cmd_name: &str) -> Result<Option<PathBuf>> {
         let mut pathstr = String::new();
         let mut first = true;

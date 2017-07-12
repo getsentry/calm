@@ -1,7 +1,7 @@
 use std::env;
 use std::io;
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
 use std::process;
 
 use prelude::*;
@@ -10,7 +10,10 @@ use ctx::Context;
 use report::Format;
 use utils::whatchanged::get_changed_files;
 use utils::hooks::HookManager;
+use utils::watch::watch_files;
+use utils::ui::clear_term;
 
+use console::style;
 use clap::{App, Arg, AppSettings, ArgMatches};
 
 const ABOUT: &'static str = "
@@ -44,8 +47,17 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
                  .long("format")
                  .short("f")
                  .value_name("FORMAT")
-                 .possible_values(&["human", "simple", "checkstyle"])
+                 .possible_values(&["human", "human-extended", "simple", "checkstyle"])
                  .help("Sets the output format"))
+            .arg(Arg::with_name("watch")
+                 .long("watch")
+                 .help("Keeps watching for linting errors."))
+            .arg(Arg::with_name("all")
+                 .long("all")
+                 .help("This will lint all files.  This is the default if no paths are \
+                        given and watching is not enabled but has to be explicitly \
+                        provided for watch as otherwise watch will only lint the \
+                        changed file."))
             .arg(Arg::with_name("changed_files")
                  .long("changed-files")
                  .help("Lint files changed in the current git work tree."))
@@ -79,7 +91,11 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
     } else if let Some(_sub_matches) = matches.subcommand_matches("clear-cache") {
         cmd_clear_cache(&ctx)
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
-        cmd_lint(&ctx, sub_matches)
+        if sub_matches.is_present("watch") {
+            cmd_lint_watch(&ctx, sub_matches)
+        } else {
+            cmd_lint(&ctx, sub_matches)
+        }
     } else if let Some(sub_matches) = matches.subcommand_matches("format") {
         cmd_format(&ctx, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("hook") {
@@ -103,11 +119,14 @@ fn cmd_clear_cache(ctx: &Context) -> Result<()> {
 }
 
 fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
+    let all = matches.is_present("all");
     let format = matches.value_of("fmt").unwrap_or("human");
     let changed_files;
     let paths: Option<Vec<&Path>>;
 
-    if matches.is_present("changed_files") {
+    if all {
+        paths = None;
+    } else  if matches.is_present("changed_files") {
         changed_files = get_changed_files()?;
         if changed_files.is_empty() {
             return Ok(());
@@ -126,6 +145,40 @@ fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn cmd_lint_watch(ctx: &Context, matches: &ArgMatches) -> Result<()> {
+    let all = matches.is_present("all");
+    let format = matches.value_of("fmt").unwrap_or("human-extended");
+
+    if matches.is_present("files") {
+        fail!("Lint watcher does not accept any arguments");
+    }
+
+    clear_term();
+    println_stderr!("Linting on changes ...");
+    let fmt = format.parse().unwrap();
+    watch_files(ctx.base_dir(), &|path: &Path| -> Result<()> {
+        if ctx.is_lintable_file(path)? {
+            clear_term();
+            println_stderr!("Detected change in {}", style(path.display()).cyan());
+            let report = if all {
+                ctx.lint(None)
+            } else {
+                ctx.lint(Some(&[path][..]))
+            }?;
+            ctx.clear_log();
+            clear_term();
+            if !all {
+                println_stderr!("Results for {}:", style(path.display()).cyan());
+                println_stderr!("");
+            }
+            report.print(fmt)?;
+        }
+        Ok(())
+    })?;
+
+    unreachable!();
 }
 
 fn cmd_format(ctx: &Context, matches: &ArgMatches) -> Result<()> {
