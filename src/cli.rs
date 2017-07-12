@@ -52,6 +52,17 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
             .arg(Arg::with_name("files")
                 .index(1)
                 .multiple(true)))
+        .subcommand(App::new("format")
+            .about("Format the given files with configured formatters.")
+            .arg(Arg::with_name("write")
+                 .long("write")
+                 .help("Write the changes back instead of printing a diff."))
+            .arg(Arg::with_name("changed_files")
+                 .long("changed-files")
+                 .help("Format files changed in the current git work tree."))
+            .arg(Arg::with_name("files")
+                .index(1)
+                .multiple(true)))
         .subcommand(App::new("which")
             .about("Given a command returns the path where it lives.")
             .arg(Arg::with_name("cmd")
@@ -69,6 +80,8 @@ fn execute(args: Vec<String>, config: Config) -> Result<()> {
         cmd_clear_cache(&ctx)
     } else if let Some(sub_matches) = matches.subcommand_matches("lint") {
         cmd_lint(&ctx, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("format") {
+        cmd_format(&ctx, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("hook") {
         cmd_hook(&ctx, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("which") {
@@ -113,6 +126,28 @@ fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn cmd_format(ctx: &Context, matches: &ArgMatches) -> Result<()> {
+    let changed_files;
+    let paths: Vec<&Path>;
+
+    if matches.is_present("changed_files") {
+        changed_files = get_changed_files()?;
+        if changed_files.is_empty() {
+            return Ok(());
+        }
+        paths = changed_files.iter().map(|x| x.as_path()).collect();
+    } else if let Some(files) = matches.values_of("files") {
+        paths = files.map(|x| Path::new(x)).collect::<Vec<_>>();
+    } else {
+        return Ok(());
+    }
+
+    let rv = ctx.format(&paths)?;
+    ctx.clear_log();
+    rv.print_diff()?;
+    Ok(())
 }
 
 fn cmd_hook(ctx: &Context, matches: &ArgMatches) -> Result<()> {

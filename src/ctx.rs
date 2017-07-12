@@ -8,6 +8,7 @@ use config::{Config, RuntimeConfig, RemoteToolInclude};
 use tools::Tool;
 use utils::cmd::CommandBuilder;
 use report::Report;
+use formatting::FormatResult;
 use rt;
 use rt::common::Runtime;
 
@@ -188,6 +189,21 @@ impl Context {
 
         report.sort();
         Ok(report)
+    }
+
+    pub fn format(&self, files: &[&Path]) -> Result<FormatResult> {
+        let mut rv = FormatResult::new();
+
+        for file in files {
+            rv.register_file(file)?;
+        }
+
+        for tool_id in self.config.iter_tools() {
+            let tool = self.create_tool(tool_id)?;
+            tool.format(&mut rv, files)?;
+        }
+
+        Ok(rv)
     }
 
     pub fn find_command(&self, cmd_name: &str) -> Result<Option<PathBuf>> {

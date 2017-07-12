@@ -16,6 +16,7 @@ extern crate elementtree;
 extern crate parking_lot;
 extern crate walkdir;
 extern crate which;
+extern crate tempfile;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
 
@@ -27,6 +28,7 @@ mod config;
 mod ctx;
 mod errors;
 mod report;
+mod formatting;
 mod rt;
 mod tools;
 mod utils;

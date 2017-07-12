@@ -1,12 +1,12 @@
 [package]
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
-name = "calm"
-version = "0.1.0"
-keywords = ["calm", "lint"]
 description = "A meta linting system."
 homepage = "https://github.com/getsentry/calm"
+keywords = ["calm", "lint"]
 license = "BSD-3-Clause"
+name = "calm"
 readme = "README.md"
+version = "0.1.0"
 
 [dependencies]
 console = "0.5.0"
@@ -26,6 +26,7 @@ serde_derive = "1.0.8"
 serde_json = "1.0.2"
 serde_yaml = "0.7.1"
 sha1 = "0.2.0"
+tempfile = "2.1.5"
 walkdir = "1.0.7"
 which = "1.0.2"
 

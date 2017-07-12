@@ -11,6 +11,7 @@ use rt::common::Runtime;
 use utils::cmd::{CommandBuilder, CommandHandlers};
 use config::{ToolSpec, ToolStep, ToolCommand, ReportPatternMatch};
 use report::Report;
+use formatting::FormatResult;
 
 use parking_lot::Mutex;
 use serde_json;
@@ -228,5 +229,9 @@ impl<'a> Tool<'a> {
             // no lint configured, success!
             Ok(true)
         }
+    }
+
+    pub fn format(&self, fr: &mut FormatResult, files: &[&Path]) -> Result<()> {
+        Ok(())
     }
 }

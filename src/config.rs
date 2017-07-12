@@ -61,6 +61,12 @@ pub struct LintSpec {
 }
 
 #[derive(Deserialize, Default, Debug, Clone)]
+pub struct FormatSpec {
+    pub patterns: Vec<Pattern>,
+    pub run: Vec<ToolStep>,
+}
+
+#[derive(Deserialize, Default, Debug, Clone)]
 pub struct RuntimeConfig {
     /// some runtimes have different flavors that can be selected.
     flavor: Option<String>,
@@ -93,6 +99,7 @@ pub struct ToolSpec {
     #[serde(rename="install", default)]
     pub install_steps: Vec<ToolStep>,
     pub lint: Option<LintSpec>,
+    pub format: Option<FormatSpec>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
