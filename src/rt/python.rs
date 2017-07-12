@@ -9,6 +9,7 @@ use rt::common::Runtime;
 use utils::cmd::CommandBuilder;
 
 use sha1::Sha1;
+use itertools::Itertools;
 
 const DEFAULT_FLAVOR: &'static str = "python3";
 
@@ -101,7 +102,8 @@ impl<'a> Runtime<'a> for PythonRuntime<'a> {
 
         // install dependencies
         if !self.config.packages().is_empty() {
-            self.ctx.log_step("Installing python packages");
+            self.ctx.log_step(&format!("Installing python packages: {}",
+                                       self.config.packages().iter().map(|(x, _)| x).join(", ")));
             let mut cmd = CommandBuilder::new("bin/pip");
             cmd
                 .current_dir(&path)

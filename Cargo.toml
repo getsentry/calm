@@ -19,6 +19,7 @@ git2 = "0.6.6"
 glob = "0.2.11"
 if_chain = "0.1.2"
 indicatif = "0.6.0"
+itertools = "0.6.0"
 lazy_static = "0.2.8"
 notify = "4.0.1"
 parking_lot = "0.4.4"
@@ -32,11 +33,13 @@ tempfile = "2.1.5"
 walkdir = "1.0.7"
 which = "1.0.2"
 
-[replace.'difflib:0.2.0']
-git = "https://github.com/mitsuhiko/difflib"
-rev = "76384c2568a927c6b864a3b4be52d66cc7127cca"
-
 [dependencies.clap]
 default-features = false
 features = ["suggestions", "wrap_help"]
 version = "2.25.0"
+
+[replace]
+
+[replace."difflib:0.2.0"]
+git = "https://github.com/mitsuhiko/difflib"
+rev = "76384c2568a927c6b864a3b4be52d66cc7127cca"

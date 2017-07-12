@@ -11,6 +11,7 @@ use utils::cmd::CommandBuilder;
 
 use sha1::Sha1;
 use console::user_attended;
+use itertools::Itertools;
 
 #[derive(Debug)]
 pub struct JsRuntime<'a> {
@@ -107,7 +108,8 @@ impl<'a> Runtime<'a> for JsRuntime<'a> {
 
         // install yarn dependencies
         if !self.config.packages().is_empty() {
-            self.ctx.log_step("Installing javascript packages");
+            self.ctx.log_step(&format!("Installing javascript packages: {}",
+                                       self.config.packages().iter().map(|(x, _)| x).join(", ")));
             let mut cmd = CommandBuilder::new("yarn");
             cmd
                 .current_dir(&path)

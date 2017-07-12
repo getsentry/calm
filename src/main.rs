@@ -19,6 +19,7 @@ extern crate which;
 extern crate tempfile;
 extern crate notify;
 extern crate difflib;
+extern crate itertools;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
 
