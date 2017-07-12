@@ -216,16 +216,22 @@ fn cmd_hook(ctx: &Context, matches: &ArgMatches) -> Result<()> {
         mgr.uninstall_hooks()?;
         println!("Disabled hooks.");
     } else if matches.is_present("pre_commit") {
-        // run lint on changed files in pre-commit
         let changed_files = get_changed_files()?;
-        if !changed_files.is_empty() {
-            let paths: Vec<_> = changed_files.iter().map(|x| x.as_path()).collect();
-            let report = ctx.lint(Some(&paths[..]))?;
-            ctx.clear_log();
-            report.print(Format::Human)?;
-            if report.did_fail() {
-                return Err(Error::from(ErrorKind::QuietExit(1)));
-            }
+        if changed_files.is_empty() {
+            return Ok(());
+        }
+
+        let paths: Vec<_> = changed_files.iter().map(|x| x.as_path()).collect();
+
+        // format
+        ctx.format(&paths)?.apply()?;
+
+        // lint
+        let report = ctx.lint(Some(&paths[..]))?;
+        ctx.clear_log();
+        report.print(Format::Human)?;
+        if report.did_fail() {
+            return Err(Error::from(ErrorKind::QuietExit(1)));
         }
     } else {
         let status = mgr.status()?;
