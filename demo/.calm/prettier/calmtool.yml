@@ -1,0 +1,12 @@
+tool:
+  runtimes:
+    javascript:
+      packages:
+        prettier: 1.5.2
+  format:
+    patterns:
+      - '*.js'
+      - '*.jsx'
+    run:
+      - cmd: prettier --single-quote --bracket-spacing=false --print-width=90 --jsx-bracket-same-line=true
+        description: Formatting with prettier

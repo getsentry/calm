@@ -5,3 +5,6 @@ tools:
   eslint:
     include:
       path: eslint
+  prettier:
+    include:
+      path: prettier
