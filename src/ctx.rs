@@ -200,7 +200,9 @@ impl Context {
 
         for tool_id in self.config.iter_tools() {
             let tool = self.create_tool(tool_id)?;
-            tool.format(&mut rv, files)?;
+            if !tool.format(&mut rv, files)? {
+                fail!("formatter '{}' failed", tool_id);
+            }
         }
 
         Ok(rv)

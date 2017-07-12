@@ -211,30 +211,38 @@ impl<'a> Tool<'a> {
         if let Some(ref lint_spec) = self.spec.lint {
             let base = self.ctx.base_dir();
             let mut failed = false;
-            let mut opts = RunStepOptions {
-                report: Some(report),
-                file_args: files.map(|x| x.iter().filter_map(|&x| {
-                    for pat in &lint_spec.patterns {
-                        if pat.match_path(x) {
-                            return Some(x.strip_prefix(base).unwrap_or(x));
+
+            {
+                let mut opts = RunStepOptions {
+                    report: Some(report),
+                    file_args: files.map(|x| x.iter().filter_map(|&x| {
+                        for pat in &lint_spec.patterns {
+                            if pat.match_path(x) {
+                                return Some(x.strip_prefix(base).unwrap_or(x));
+                            }
                         }
+                        None
+                    }).collect()).unwrap_or(vec![]),
+                };
+
+                // if no files are passed to the runner but an explicit file
+                // list was given to the lint function, we bail without
+                // running as no files would mean all files.
+                if opts.file_args.is_empty() && files.is_some() {
+                    return Ok(true);
+                }
+
+                for step in &lint_spec.run {
+                    if !self.run_step(step, Some(&mut opts))? {
+                        failed = true;
                     }
-                    None
-                }).collect()).unwrap_or(vec![]),
-            };
-
-            // if no files are passed to the runner but an explicit file
-            // list was given to the lint function, we bail without
-            // running as no files would mean all files.
-            if opts.file_args.is_empty() && files.is_some() {
-                return Ok(true);
-            }
-
-            for step in &lint_spec.run {
-                if !self.run_step(step, Some(&mut opts))? {
-                    failed = true;
                 }
             }
+
+            if failed {
+                report.mark_failed();
+            }
+
             Ok(!failed)
         } else {
             // no lint configured, success!

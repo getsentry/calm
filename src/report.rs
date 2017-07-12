@@ -164,6 +164,7 @@ impl LintResult {
 pub struct Report<'a> {
     lint_results: Vec<LintResult>,
     ctx: &'a Context,
+    linter_failed: bool,
     errors: u64,
     warnings: u64,
 }
@@ -173,6 +174,7 @@ impl<'a> Report<'a> {
         Report {
             lint_results: vec![],
             ctx: ctx,
+            linter_failed: false,
             errors: 0,
             warnings: 0,
         }
@@ -257,12 +259,20 @@ impl<'a> Report<'a> {
     fn push_result(&mut self, res: LintResult) -> Result<&LintResult> {
         let idx = self.lint_results.len();
         match res.level {
-            Level::Error => { self.errors += 1; }
+            Level::Error => { self.linter_failed = true; self.errors += 1; }
             Level::Warning => { self.warnings += 1; }
             _ => {}
         }
         self.lint_results.push(res);
         Ok(&self.lint_results[idx])
+    }
+
+    pub fn mark_failed(&mut self) {
+        self.linter_failed = true;
+    }
+
+    pub fn did_fail(&self) -> bool {
+        self.linter_failed
     }
 
     pub fn has_errors(&self) -> bool {
@@ -282,10 +292,6 @@ impl<'a> Report<'a> {
     }
 
     pub fn print(&self, format: Format) -> Result<()> {
-        if self.lint_results.is_empty() && format != Format::HumanExtended {
-            return Ok(());
-        }
-
         match format {
             Format::Human | Format::HumanExtended => {
                 for res in &self.lint_results {
@@ -293,7 +299,11 @@ impl<'a> Report<'a> {
                 }
 
                 if self.lint_results.is_empty() {
-                    println!("{}", style("Lint passed").green());
+                    if self.did_fail() {
+                        println!("Warning: linter failed but no messages emitted!");
+                    } else if format == Format::HumanExtended {
+                        println!("{}", style("Lint passed").green());
+                    }
                 } else {
                     let style = if self.has_errors() {
                         Style::new().bold().red()

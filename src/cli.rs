@@ -140,7 +140,7 @@ fn cmd_lint(ctx: &Context, matches: &ArgMatches) -> Result<()> {
     let report = ctx.lint(paths.as_ref().map(|x| &x[..]))?;
     ctx.clear_log();
     report.print(format.parse().unwrap())?;
-    if report.has_errors() {
+    if report.did_fail() {
         Err(Error::from(ErrorKind::QuietExit(1)))
     } else {
         Ok(())
@@ -223,7 +223,7 @@ fn cmd_hook(ctx: &Context, matches: &ArgMatches) -> Result<()> {
             let report = ctx.lint(Some(&paths[..]))?;
             ctx.clear_log();
             report.print(Format::Human)?;
-            if report.has_errors() {
+            if report.did_fail() {
                 return Err(Error::from(ErrorKind::QuietExit(1)));
             }
         }
